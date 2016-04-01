@@ -180,7 +180,7 @@ search_treebase <- function(input, by, returns = c("tree", "matrix"),
 
   # combine into a search query
   # Should eventually update to allow for multiple query terms with booleans
-  query <- paste("http://purl.org/phylo/treebase/phylows/", search_type, 
+  query <- paste("http://treebase.org/treebase-web/phylows/", search_type, 
                  search_term[1], input, format, "&recordSchema=", schema, sep="")
   ## display the constructed query to the user
   message(query)
@@ -293,9 +293,6 @@ have_branchlength <- function(trees){
  sapply(trees, function(x) !is.null(x[["edge.length"]]))
 }
 
-
-
-
 ## an internal function which descends through the pages to get the nexus resources
 dig <- function(tree_url, returns="tree", curl=getCurlHandle(), pause1=1, pause2=1){
 # Get the URL to the actual resource on that page 
@@ -307,7 +304,6 @@ dig <- function(tree_url, returns="tree", curl=getCurlHandle(), pause1=1, pause2
   seconddoc <- xmlParse(target) ## This fails if we rush
 
   message("Looking for nexus files...")
-
   ### Here we sometimes get 304 errors, and want to try again
   node <- xpathApply(seconddoc, "//x:item[x:title='Nexus file']", 
             namespaces=c(x="http://purl.org/rss/1.0/"),
@@ -317,16 +313,18 @@ dig <- function(tree_url, returns="tree", curl=getCurlHandle(), pause1=1, pause2
 
               ## being patient will let the server get the resource ready
               Sys.sleep(pause2)
-              con <- url(xmlValue(x[["link"]]))
+              con <- xmlValue(x[["link"]])
+              file <- tempfile()
+              write(getURL(con,.opts=curlOptions(followlocation=TRUE), curl=curl), file)## fails if we rush
               if(returns=="tree"){
-                nex <- read.nexus(con) ## fails if we rush
+                nex <- read.nexus(file)
                 message("Tree read in successfully")
               } else if (returns=="matrix"){
-                 nex <- read.nexus.data(xmlValue(x[["link"]]))
+                 nex <- read.nexus.data(file)
               }
             nex
             })
-  node <- node[[1]] # will fail if above has errored
+  #node <- node[[1]] # will fail if above has errored
   node
   # One tree per seconddoc 
 }
@@ -372,5 +370,3 @@ try_recursive <- function(x,returns, curl, pause1, pause2, attempts=3){
   }
   out
 }
-
-
